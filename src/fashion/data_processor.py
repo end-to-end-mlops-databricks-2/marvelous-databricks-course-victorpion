@@ -1,9 +1,12 @@
 import os
+
 import pandas as pd
 from pyspark.sql import SparkSession
-from sklearn.model_selection import train_test_split
 from pyspark.sql.functions import current_timestamp, to_utc_timestamp
+from sklearn.model_selection import train_test_split
+
 from fashion.config import ProjectConfig
+
 
 class DataProcessor:
     def __init__(self, pandas_df: pd.DataFrame, config: ProjectConfig, spark: SparkSession, images_path):
@@ -15,14 +18,13 @@ class DataProcessor:
     def preprocess(self):
         """Preprocess the DataFrame stored in self.df"""
 
-        self.df.loc[self.df['label']=='Not sure','label'] = 'Not_sure' # format Not sure category
-        self.df['image'] = self.df['image'] + '.jpg' # add .jpg to all image ids
-        self.df['label_cat'] = self.df['label'] + '_' + self.df['kids'].astype(str) # merge kids boolean with category
-        self.df = self.df[['image', 'label_cat']]  # keep only image id and category
-        self.df["label_cat"] = self.df["label_cat"].astype("category") # change data type to category
-        images_ids = set(os.listdir(self.images_path)) # list the images ids present in the images folder
-        self.df = self.df[self.df['image'].isin(images_ids)]  # remove rows with missing images from the csv
-
+        self.df.loc[self.df["label"] == "Not sure", "label"] = "Not_sure"  # format Not sure category
+        self.df["image"] = self.df["image"] + ".jpg"  # add .jpg to all image ids
+        self.df["label_cat"] = self.df["label"] + "_" + self.df["kids"].astype(str)  # merge kids boolean with category
+        self.df = self.df[["image", "label_cat"]]  # keep only image id and category
+        self.df["label_cat"] = self.df["label_cat"].astype("category")  # change data type to category
+        images_ids = set(os.listdir(self.images_path))  # list the images ids present in the images folder
+        self.df = self.df[self.df["image"].isin(images_ids)]  # remove rows with missing images from the csv
 
     def split_data(self, test_size=0.2, random_state=42):
         """Split the DataFrame (self.df) into training and test sets."""

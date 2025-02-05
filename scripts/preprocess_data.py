@@ -1,7 +1,7 @@
 import logging
 
-import yaml
 import pandas as pd
+import yaml
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig
@@ -19,10 +19,10 @@ logger.info(yaml.dump(config, default_flow_style=False))
 # Load the fashion prices dataset
 spark = SparkSession.builder.getOrCreate()
 
-df = pd.read_csv('../data/images.csv')
+df = pd.read_csv("../data/images.csv")
 
 # Initialize DataProcessor
-data_processor = DataProcessor(pandas_df=df, config=config, spark=spark, images_path='../data/images_compressed/')
+data_processor = DataProcessor(pandas_df=df, config=config, spark=spark, images_path="../data/images_compressed/")
 
 # Preprocess the data
 data_processor.preprocess()
