@@ -1,80 +1,60 @@
-# data_cleaning.py
-import pandas as pd
 import os
-from PIL import Image
+import pandas as pd
+from pyspark.sql import SparkSession
+from sklearn.model_selection import train_test_split
+from pyspark.sql.functions import current_timestamp, to_utc_timestamp
+from fashion.config import ProjectConfig
 
-def clean_data(df: pd.DataFrame, image_folder: str) -> pd.DataFrame:
-    # Drop duplicates
-    df = df.drop_duplicates()
-    
-    # Fill missing values
-    df.fillna({'label': 'Unknown'}, inplace=True)
-    
-    # Ensure every image has a row in the CSV
-    image_files = set(os.listdir(image_folder))
-    df_images = set(df['image_id'].astype(str) + '.jpg')
-    missing_images = image_files - df_images
-    
-    # Add missing images to the DataFrame
-    for img in missing_images:
-        df = df.append({'image_id': img.replace('.jpg', ''), 'label': 'Unknown'}, ignore_index=True)
-    
-    return df
-
-# feature_engineering.py
-def add_features(df: pd.DataFrame, image_folder: str) -> pd.DataFrame:
-    # Extract image size (width, height) and aspect ratio
-    image_sizes = []
-    for img_id in df['image_id']:
-        img_path = os.path.join(image_folder, img_id + '.jpg')
-        try:
-            with Image.open(img_path) as img:
-                width, height = img.size
-                aspect_ratio = width / height
-                image_sizes.append((width, height, aspect_ratio))
-        except:
-            image_sizes.append((0, 0, 0))
-    
-    df[['width', 'height', 'aspect_ratio']] = pd.DataFrame(image_sizes, index=df.index)
-    return df
-
-# encoding.py
-from sklearn.preprocessing import LabelEncoder
-
-def encode_categorical(df: pd.DataFrame) -> pd.DataFrame:
-    label_encoders = {}
-    categorical_columns = ['label']
-    
-    for col in categorical_columns:
-        le = LabelEncoder()
-        df[col] = le.fit_transform(df[col])
-        label_encoders[col] = le
-    
-    return df, label_encoders
-
-# data_processor.py
 class DataProcessor:
-    def __init__(self, csv_path: str, image_folder: str):
-        self.csv_path = csv_path
-        self.image_folder = image_folder
-        self.df = pd.read_csv(csv_path)
-    
-    def process(self):
-        self.df = clean_data(self.df, self.image_folder)
-        self.df = add_features(self.df, self.image_folder)
-        self.df, self.encoders = encode_categorical(self.df)
-        return self.df
-    
-    def save(self, output_path: str):
-        self.df.to_csv(output_path, index=False)
-    
-# __init__.py
-from .data_cleaning import clean_data
-from .feature_engineering import add_features
-from .encoding import encode_categorical
-from .data_processor import DataProcessor
+    def __init__(self, pandas_df: pd.DataFrame, config: ProjectConfig, spark: SparkSession, images_path):
+        self.df = pandas_df
+        self.config = config
+        self.spark = spark
+        self.images_path = images_path
 
-def preprocess_pipeline(csv_path: str, image_folder: str):
-    processor = DataProcessor(csv_path, image_folder)
-    df = processor.process()
-    return df, processor.encoders
+    def preprocess(self):
+        """Preprocess the DataFrame stored in self.df"""
+
+        self.df.loc[self.df['label']=='Not sure','label'] = 'Not_sure' # format Not sure category
+        self.df['image'] = self.df['image'] + '.jpg' # add .jpg to all image ids
+        self.df['label_cat'] = self.df['label'] + '_' + self.df['kids'].astype(str) # merge kids boolean with category
+        self.df = self.df[['image', 'label_cat']]  # keep only image id and category
+        self.df["label_cat"] = self.df["label_cat"].astype("category") # change data type to category
+        images_ids = set(os.listdir(self.images_path)) # list the images ids present in the images folder
+        self.df = self.df[self.df['image'].isin(images_ids)]  # remove rows with missing images from the csv
+
+
+    def split_data(self, test_size=0.2, random_state=42):
+        """Split the DataFrame (self.df) into training and test sets."""
+        train_set, test_set = train_test_split(self.df, test_size=test_size, random_state=random_state)
+        return train_set, test_set
+
+    def save_to_catalog(self, train_set: pd.DataFrame, test_set: pd.DataFrame):
+        """Save the train and test sets into Databricks tables."""
+
+        train_set_with_timestamp = self.spark.createDataFrame(train_set).withColumn(
+            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC")
+        )
+
+        test_set_with_timestamp = self.spark.createDataFrame(test_set).withColumn(
+            "update_timestamp_utc", to_utc_timestamp(current_timestamp(), "UTC")
+        )
+
+        train_set_with_timestamp.write.mode("overwrite").saveAsTable(
+            f"{self.config.catalog_name}.{self.config.schema_name}.train_images"
+        )
+
+        test_set_with_timestamp.write.mode("overwrite").saveAsTable(
+            f"{self.config.catalog_name}.{self.config.schema_name}.test_images"
+        )
+
+    def enable_change_data_feed(self):
+        self.spark.sql(
+            f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.train_images "
+            "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);"
+        )
+
+        self.spark.sql(
+            f"ALTER TABLE {self.config.catalog_name}.{self.config.schema_name}.test_images "
+            "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);"
+        )

@@ -1,7 +1,7 @@
 [project]
-name = "housing-price"
+name = "fashion"
 version = "0.0.1"
-description = "Housing prices project"
+description = "Fashion project"
 requires-python = ">=3.11, <3.12"
 dependencies = ["mlflow==2.17.0",
                 "cffi==1.17.1",
@@ -33,7 +33,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where =["src"]
-include = ["house_price*"]
 
 [tool.ruff]
 line-length = 120

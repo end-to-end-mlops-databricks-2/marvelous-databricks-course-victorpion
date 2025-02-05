@@ -871,7 +871,7 @@ wheels = [
 ]
 
 [[package]]
-name = "housing-price"
+name = "fashion"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
