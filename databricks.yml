@@ -1,0 +1,19 @@
+# This is a Databricks asset bundle definition for marvelous-databricks-course-victorpion.
+# The Databricks extension requires databricks.yml configuration file.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+
+bundle:
+  name: marvelous-databricks-course-victorpion
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-2910931035763058.18.azuredatabricks.net/
+
+  ## Optionally, there could be 'staging' or 'prod' targets here.
+  #
+  # prod:
+  #   workspace:
+  #     host: https://adb-2622556394223693.13.azuredatabricks.net

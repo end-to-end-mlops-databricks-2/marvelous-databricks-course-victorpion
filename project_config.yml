@@ -1,0 +1,8 @@
+catalog_name: adp_reg_dev_cse
+schema_name: mlcse
+pipeline_id:
+
+
+feature: labelcat
+
+target: Category
