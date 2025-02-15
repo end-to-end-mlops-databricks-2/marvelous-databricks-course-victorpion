@@ -60,11 +60,11 @@ class CustomModel:
 
     def get_x(self, r):
         return (
-            "/Volumes/adp_reg_dev_cse/mlcse/fashion/images_compressed/" + r["image"]
+            f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + r["image"]
         )  # create path to open images in the original folder
 
     def get_y(self, r):
-        return r["label_cat"].split(" ")
+        return r["label"].split(" ")
 
     def prepare_features(self):
         """

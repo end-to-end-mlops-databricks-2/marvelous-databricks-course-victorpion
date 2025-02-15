@@ -98,5 +98,5 @@ dmypy.json
 
 .databricks
 
-# data
-*.jpg
+#UV
+uv.lock
