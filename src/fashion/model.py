@@ -1,3 +1,4 @@
+from functools import partial
 from typing import List
 
 import mlflow
@@ -17,6 +18,7 @@ from fashion.config import ProjectConfig, Tags
 class FashionImageModelWrapper(mlflow.pyfunc.PythonModel):
     def __init__(self, model):
         self.model = model
+        self.model.dls = None
 
     def predict(self, context, model_input: pd.DataFrame | np.ndarray):
         predictions = self.model.get_preds(model_input)
@@ -58,14 +60,6 @@ class CustomModel:
         # self.y_test = self.test_set[self.target]
         logger.info("✅ Data successfully loaded.")
 
-    def get_x(self, r):
-        return (
-            f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + r["image"]
-        )  # create path to open images in the original folder
-
-    def get_y(self, r):
-        return r["label"].split(" ")
-
     def prepare_features(self):
         """
         Encodes categorical features with OneHotEncoder (ignores unseen categories).
@@ -75,11 +69,14 @@ class CustomModel:
             LightGBM regression model
         """
         logger.info("🔄 Defining preprocessing pipeline...")
+
+        get_x = lambda r: f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + r["image"]  # noqa: E731
+        get_y = lambda r: r["label"]  # noqa: E731
         # Create DataBlock
         dblock = DataBlock(  # noqa: F405
             blocks=(ImageBlock, MultiCategoryBlock),  # noqa: F405
-            get_x=self.get_x,
-            get_y=self.get_y,
+            get_x=get_x,
+            get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),  # noqa: F405
         )  # ensure every item is of the same size
         self.dls = dblock.dataloaders(self.train_set)  # collates items from dataset into minibatches
@@ -90,7 +87,7 @@ class CustomModel:
         Train the model.
         """
         logger.info("🚀 Starting training...")
-        self.learn = cnn_learner(self.dls, resnet18, metrics=partial(accuracy_multi, thresh=0.2))  # noqa: F405
+        self.learn = vision_learner(self.dls, resnet18, metrics=partial(accuracy_multi, thresh=0.2))  # noqa: F405
         self.learn.fine_tune(1, base_lr=3e-3)
 
     def log_model(self):
@@ -123,12 +120,16 @@ class CustomModel:
             signature = infer_signature(model_input=self.train_set, model_output={"Prediction": 100000.0})
             dataset = mlflow.data.from_spark(
                 self.train_set_spark,
-                table_name=f"{self.catalog_name}.{self.schema_name}.train_set",
+                table_name=f"{self.catalog_name}.{self.schema_name}.train_images",
                 version=self.data_version,
             )
             mlflow.log_input(dataset, context="training")
 
             conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
+
+            self.learn.dls = None
+            self.spark = None
+            self.train_set_spark = None
 
             mlflow.pyfunc.log_model(
                 python_model=FashionImageModelWrapper(self.learn),
@@ -166,8 +167,8 @@ class CustomModel:
         run = mlflow.get_run(self.run_id)
         dataset_info = run.inputs.dataset_inputs[0].dataset
         dataset_source = mlflow.data.get_source(dataset_info)
-        return dataset_source.load()
         logger.info("✅ Dataset source loaded.")
+        return dataset_source.load()
 
     def retrieve_current_run_metadata(self):
         """
