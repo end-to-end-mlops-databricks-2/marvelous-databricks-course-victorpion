@@ -1,11 +1,8 @@
-from functools import partial
 from typing import List
 
 import mlflow
-import numpy as np
 import pandas as pd
 from fastai.vision.all import *  # noqa: F403
-from fastai.vision.widgets import *  # noqa: F403
 from loguru import logger
 from mlflow import MlflowClient
 from mlflow.models import infer_signature
@@ -16,13 +13,16 @@ from fashion.config import ProjectConfig, Tags
 
 
 class FashionImageModelWrapper(mlflow.pyfunc.PythonModel):
-    def __init__(self, model):
+    def __init__(self, model, catalog_name, schema_name):
         self.model = model
+        self.catalog_name = catalog_name
+        self.schema_name = schema_name
         self.model.dls = None
 
-    def predict(self, context, model_input: pd.DataFrame | np.ndarray):
-        predictions = self.model.get_preds(model_input)
-        # looks like {"Prediction": 10000.0}
+    def predict(self, context, model_input: str):
+        image_path = f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + model_input
+        predictions = self.model.predict(image_path)
+        # looks like {"Prediction": "Category"}
         return {"Prediction": predictions[0]}
 
 
@@ -74,7 +74,7 @@ class CustomModel:
         get_y = lambda r: r["label"]  # noqa: E731
         # Create DataBlock
         dblock = DataBlock(  # noqa: F405
-            blocks=(ImageBlock, MultiCategoryBlock),  # noqa: F405
+            blocks=(ImageBlock, CategoryBlock),  # noqa: F405
             get_x=get_x,
             get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),  # noqa: F405
@@ -87,7 +87,7 @@ class CustomModel:
         Train the model.
         """
         logger.info("🚀 Starting training...")
-        self.learn = vision_learner(self.dls, resnet18, metrics=partial(accuracy_multi, thresh=0.2))  # noqa: F405
+        self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
         self.learn.fine_tune(1, base_lr=3e-3)
 
     def log_model(self):
@@ -102,22 +102,17 @@ class CustomModel:
 
         with mlflow.start_run(tags=self.tags) as run:
             self.run_id = run.info.run_id
-            preds, targs = self.learn.get_preds()
             # y_pred = self.pipeline.predict(self.X_test)
 
-            # Evaluate metrics
-            # Apply threshold
-            pred_labels = (preds > 0.2).int()
+            # Retrieve validation accuracy
+            _, accuracy = self.learn.validate()
 
-            # Calculate multi-label accuracy
-            accuracy = (pred_labels == targs).float().mean()
-
-            logger.info(f"📊 Accuracy: {accuracy}")
+            logger.info(f"📊 Validation Accuracy: {accuracy}")
 
             # Log parameters and metrics
             mlflow.log_metric("accuracy", accuracy)
             # Log the model
-            signature = infer_signature(model_input=self.train_set, model_output={"Prediction": 100000.0})
+            signature = infer_signature(model_input=self.train_set, model_output={"Prediction": "Category"})
             dataset = mlflow.data.from_spark(
                 self.train_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.train_images",
@@ -127,12 +122,14 @@ class CustomModel:
 
             conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
 
-            self.learn.dls = None
+            # self.learn.dls = None
             self.spark = None
             self.train_set_spark = None
 
             mlflow.pyfunc.log_model(
-                python_model=FashionImageModelWrapper(self.learn),
+                python_model=FashionImageModelWrapper(
+                    model=self.learn, catalog_name=self.catalog_name, schema_name=self.schema_name
+                ),
                 artifact_path="pyfunc-fashion-image-model",
                 code_paths=self.code_paths,
                 conda_env=conda_env,
