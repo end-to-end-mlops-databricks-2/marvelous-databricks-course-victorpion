@@ -1,3 +1,4 @@
+from functools import partial
 from typing import List
 
 import mlflow
@@ -33,6 +34,14 @@ from fashion.config import ProjectConfig, Tags
 #         predictions = self.model.predict(model_input["image"])
 #         # looks like {"Prediction": "Category"}
 #         return {"Prediction": predictions[0]}
+
+
+def get_x(r, catalog_name, schema_name):
+    return f"/Volumes/{catalog_name}/{schema_name}/fashion/images_compressed/" + r["image"]
+
+
+def get_y(r):
+    return r["label"]
 
 
 class CustomModel:
@@ -79,12 +88,12 @@ class CustomModel:
         """
         logger.info("🔄 Defining preprocessing pipeline...")
 
-        get_x = lambda r: f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + r["image"]  # noqa: E731
-        get_y = lambda r: r["label"]  # noqa: E731
+        get_x_partial = partial(get_x, catalog_name=self.catalog_name, schema_name=self.schema_name)
+
         # Create DataBlock
         dblock = DataBlock(  # noqa: F405
             blocks=(ImageBlock, CategoryBlock),  # noqa: F405
-            get_x=get_x,
+            get_x=get_x_partial,
             get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),  # noqa: F405
         )  # ensure every item is of the same size
@@ -152,7 +161,6 @@ class CustomModel:
             mlflow.log_input(dataset, context="training")
 
             conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
-            self.dls = None
             self.spark = None
             self.train_set_spark = None
 
