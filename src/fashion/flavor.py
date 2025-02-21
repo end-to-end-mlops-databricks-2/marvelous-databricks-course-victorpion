@@ -152,12 +152,12 @@ class CustomModel:
             mlflow.log_input(dataset, context="training")
 
             conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
-
+            self.dls = None
             self.spark = None
             self.train_set_spark = None
 
             mlflow.fastai.log_model(
-                fastai_learner=self,
+                fastai_learner=self.learn,
                 artifact_path="pyfunc-fashion-image-model",
                 code_paths=self.code_paths,
                 conda_env=conda_env,
