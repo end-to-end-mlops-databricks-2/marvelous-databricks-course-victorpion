@@ -8,10 +8,6 @@ from fashion.model import CustomModel
 mlflow.set_tracking_uri("databricks")
 mlflow.set_registry_uri("databricks-uc")
 
-# Profile called "course"
-# mlflow.set_tracking_uri("databricks://course")
-# mlflow.set_registry_uri("databricks-uc://course")
-
 config = ProjectConfig.from_yaml(config_path="../project_config.yml")
 spark = SparkSession.builder.getOrCreate()
 tags = Tags(**{"git_sha": "abcd12345", "branch": "week2"})

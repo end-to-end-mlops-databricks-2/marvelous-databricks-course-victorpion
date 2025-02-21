@@ -1,7 +1,7 @@
-from functools import partial
 from typing import List
 
 import mlflow
+import mlflow.fastai
 import pandas as pd
 from fastai.vision.all import *  # noqa: F403
 from loguru import logger
@@ -12,35 +12,27 @@ from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
 
+# class FashionImageModelWrapper(mlflow.pyfunc.PythonModel):
+#     def __init__(self, model):
+#         self.model = model
 
-def get_x(r, catalog_name, schema_name):
-    return f"/Volumes/{catalog_name}/{schema_name}/fashion/images_compressed/" + r["image"]
+#     def predict(self, context, model_input: str):
 
+#         if isinstance(model_input, pd.DataFrame):
+#             model_input = model_input.to_dict(orient="records")[0]
 
-def get_y(r):
-    return r["label"]
+#         if isinstance(model_input, pd.Series):
+#             model_input = model_input.to_dict()
 
+#         if not isinstance(model_input, list | dict):
+#             msg = f"Unexpected input format: {type(model_input)}. Expected a dictionary or pandas DataFrame. Model input: {model_input}"
+#             raise TypeError(msg)
 
-class FashionImageModelWrapper(mlflow.pyfunc.PythonModel):
-    def __init__(self, model):
-        self.model = model
-
-    def predict(self, context, model_input: str):
-        if isinstance(model_input, pd.DataFrame):
-            model_input = model_input.to_dict(orient="records")[0]
-
-        if isinstance(model_input, pd.Series):
-            model_input = model_input.to_dict()
-
-        if not isinstance(model_input, list | dict):
-            msg = f"Unexpected input format: {type(model_input)}. Expected a dictionary or pandas DataFrame. Model input: {model_input}"
-            raise TypeError(msg)
-
-        print(f"Type of model input : {type(model_input)}")
-        print(f"Model input : {model_input}")
-        predictions = self.model.predict(model_input["image"])
-        # looks like {"Prediction": "Category"}
-        return {"Prediction": predictions[0]}
+#         print(f"Type of model input : {type(model_input)}")
+#         print(f"Model input : {model_input}")
+#         predictions = self.model.predict(model_input["image"])
+#         # looks like {"Prediction": "Category"}
+#         return {"Prediction": predictions[0]}
 
 
 class CustomModel:
@@ -87,12 +79,16 @@ class CustomModel:
         """
         logger.info("🔄 Defining preprocessing pipeline...")
 
-        get_x_partial = partial(get_x, catalog_name=self.catalog_name, schema_name=self.schema_name)
+        def get_y(r):
+            return r["label"]
+
+        def get_x(r):
+            return "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/" + r["image"]
 
         # Create DataBlock
         dblock = DataBlock(  # noqa: F405
             blocks=(ImageBlock, CategoryBlock),  # noqa: F405
-            get_x=get_x_partial,
+            get_x=get_x,
             get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),  # noqa: F405
         )  # ensure every item is of the same size
@@ -105,7 +101,24 @@ class CustomModel:
         """
         logger.info("🚀 Starting training...")
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
-        # self.learn.fine_tune(0, base_lr=3e-3)
+        # self.learn.fine_tune(1, base_lr=3e-3)
+
+    def predict(self, context, model_input: str):
+        if isinstance(model_input, pd.DataFrame):
+            model_input = model_input.to_dict(orient="records")[0]
+
+        if isinstance(model_input, pd.Series):
+            model_input = model_input.to_dict()
+
+        if not isinstance(model_input, list | dict):
+            msg = f"Unexpected input format: {type(model_input)}. Expected a dictionary or pandas DataFrame. Model input: {model_input}"
+            raise TypeError(msg)
+
+        print(f"Type of model input : {type(model_input)}")
+        print(f"Model input : {model_input}")
+        predictions = self.learn.predict(model_input["image"])
+        # looks like {"Prediction": "Category"}
+        return {"Prediction": predictions}
 
     def log_model(self):
         """
@@ -134,7 +147,7 @@ class CustomModel:
             # example_array_input = np.array(example_image_input)
 
             # Log the model
-            signature = infer_signature(model_input={"image": "string"}, model_output="category")
+            signature = infer_signature(model_input={"image_id": "string"}, model_output="category")
             dataset = mlflow.data.from_spark(
                 self.train_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.train_images",
@@ -143,14 +156,12 @@ class CustomModel:
             mlflow.log_input(dataset, context="training")
 
             conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
-
+            self.dls = None
             self.spark = None
             self.train_set_spark = None
 
-            mlflow.pyfunc.log_model(
-                python_model=FashionImageModelWrapper(
-                    model=self.learn,
-                ),
+            mlflow.fastai.log_model(
+                fastai_learner=self.learn,
                 artifact_path="pyfunc-fashion-image-model",
                 code_paths=self.code_paths,
                 conda_env=conda_env,
