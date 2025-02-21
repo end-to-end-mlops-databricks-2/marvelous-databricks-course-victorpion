@@ -6,8 +6,6 @@ import pandas as pd
 from fastai.vision.all import *  # noqa: F403
 from loguru import logger
 from mlflow import MlflowClient
-from mlflow.models import infer_signature
-from mlflow.utils.environment import _mlflow_conda_env
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
@@ -102,6 +100,9 @@ class CustomModel:
         logger.info("🚀 Starting training...")
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
         # self.learn.fine_tune(1, base_lr=3e-3)
+        mlflow.fastai.autolog()
+        with mlflow.start_run():
+            self.model = self.learn
 
     def predict(self, context, model_input: str):
         if isinstance(model_input, pd.DataFrame):
@@ -119,54 +120,6 @@ class CustomModel:
         predictions = self.learn.predict(model_input["image"])
         # looks like {"Prediction": "Category"}
         return {"Prediction": predictions}
-
-    def log_model(self):
-        """
-        Log the model.
-        """
-        mlflow.set_experiment(self.experiment_name)
-        additional_pip_deps = ["pyspark==3.5.0"]
-        for package in self.code_paths:
-            whl_name = package.split("/")[-1]
-            additional_pip_deps.append(f"code/{whl_name}")
-
-        with mlflow.start_run(tags=self.tags) as run:
-            self.run_id = run.info.run_id
-            # y_pred = self.pipeline.predict(self.X_test)
-
-            # Retrieve validation accuracy
-            _, accuracy = self.learn.validate()
-
-            logger.info(f"📊 Validation Accuracy: {accuracy}")
-
-            # Log parameters and metrics
-            mlflow.log_metric("accuracy", accuracy)
-
-            # example_image_input_path = f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + self.test_set["image"][0]
-            # example_image_input = Image.open(example_image_input_path)
-            # example_array_input = np.array(example_image_input)
-
-            # Log the model
-            signature = infer_signature(model_input={"image_id": "string"}, model_output="category")
-            dataset = mlflow.data.from_spark(
-                self.train_set_spark,
-                table_name=f"{self.catalog_name}.{self.schema_name}.train_images",
-                version=self.data_version,
-            )
-            mlflow.log_input(dataset, context="training")
-
-            conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
-            self.dls = None
-            self.spark = None
-            self.train_set_spark = None
-
-            mlflow.fastai.log_model(
-                fastai_learner=self.learn,
-                artifact_path="pyfunc-fashion-image-model",
-                code_paths=self.code_paths,
-                conda_env=conda_env,
-                signature=signature,
-            )
 
     def register_model(self):
         """
