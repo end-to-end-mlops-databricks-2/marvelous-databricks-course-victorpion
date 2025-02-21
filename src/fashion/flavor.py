@@ -1,6 +1,7 @@
 from typing import List
 
 import mlflow
+import mlflow.fastai
 import pandas as pd
 from fastai.vision.all import *  # noqa: F403
 from loguru import logger
@@ -11,27 +12,27 @@ from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
 
+# class FashionImageModelWrapper(mlflow.pyfunc.PythonModel):
+#     def __init__(self, model):
+#         self.model = model
 
-class FashionImageModelWrapper(mlflow.pyfunc.PythonModel):
-    def __init__(self, model):
-        self.model = model
+#     def predict(self, context, model_input: str):
 
-    def predict(self, context, model_input: str):
-        if isinstance(model_input, pd.DataFrame):
-            model_input = model_input.to_dict(orient="records")[0]
+#         if isinstance(model_input, pd.DataFrame):
+#             model_input = model_input.to_dict(orient="records")[0]
 
-        if isinstance(model_input, pd.Series):
-            model_input = model_input.to_dict()
+#         if isinstance(model_input, pd.Series):
+#             model_input = model_input.to_dict()
 
-        if not isinstance(model_input, list | dict):
-            msg = f"Unexpected input format: {type(model_input)}. Expected a dictionary or pandas DataFrame. Model input: {model_input}"
-            raise TypeError(msg)
+#         if not isinstance(model_input, list | dict):
+#             msg = f"Unexpected input format: {type(model_input)}. Expected a dictionary or pandas DataFrame. Model input: {model_input}"
+#             raise TypeError(msg)
 
-        print(f"Type of model input : {type(model_input)}")
-        print(f"Model input : {model_input}")
-        predictions = self.model.predict(model_input["image"])
-        # looks like {"Prediction": "Category"}
-        return {"Prediction": predictions[0]}
+#         print(f"Type of model input : {type(model_input)}")
+#         print(f"Model input : {model_input}")
+#         predictions = self.model.predict(model_input["image"])
+#         # looks like {"Prediction": "Category"}
+#         return {"Prediction": predictions[0]}
 
 
 class CustomModel:
@@ -98,6 +99,23 @@ class CustomModel:
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
         self.learn.fine_tune(1, base_lr=3e-3)
 
+    def predict(self, context, model_input: str):
+        if isinstance(model_input, pd.DataFrame):
+            model_input = model_input.to_dict(orient="records")[0]
+
+        if isinstance(model_input, pd.Series):
+            model_input = model_input.to_dict()
+
+        if not isinstance(model_input, list | dict):
+            msg = f"Unexpected input format: {type(model_input)}. Expected a dictionary or pandas DataFrame. Model input: {model_input}"
+            raise TypeError(msg)
+
+        print(f"Type of model input : {type(model_input)}")
+        print(f"Model input : {model_input}")
+        predictions = self.learn.predict(model_input["image"])
+        # looks like {"Prediction": "Category"}
+        return {"Prediction": predictions[0]}
+
     def log_model(self):
         """
         Log the model.
@@ -138,10 +156,8 @@ class CustomModel:
             self.spark = None
             self.train_set_spark = None
 
-            mlflow.pyfunc.log_model(
-                python_model=FashionImageModelWrapper(
-                    model=self.learn,
-                ),
+            mlflow.fastai.log_model(
+                fastai_learner=self,
                 artifact_path="pyfunc-fashion-image-model",
                 code_paths=self.code_paths,
                 conda_env=conda_env,
