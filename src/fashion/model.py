@@ -105,7 +105,7 @@ class CustomModel:
         """
         logger.info("🚀 Starting training...")
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
-        self.learn.fine_tune(1, base_lr=3e-3)
+        # self.learn.fine_tune(0, base_lr=3e-3)
 
     def log_model(self):
         """
@@ -147,8 +147,8 @@ class CustomModel:
             self.spark = None
             self.train_set_spark = None
 
-            mlflow.fastai.log_model(
-                fastai_learner=FashionImageModelWrapper(
+            mlflow.pyfunc.log_model(
+                python_model=FashionImageModelWrapper(
                     model=self.learn,
                 ),
                 artifact_path="pyfunc-fashion-image-model",

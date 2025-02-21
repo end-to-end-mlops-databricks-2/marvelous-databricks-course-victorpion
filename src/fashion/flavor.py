@@ -35,6 +35,14 @@ from fashion.config import ProjectConfig, Tags
 #         return {"Prediction": predictions[0]}
 
 
+def get_x(r):
+    return "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/" + r["image"]
+
+
+def get_y(r):
+    return r["label"]
+
+
 class CustomModel:
     def __init__(self, config: ProjectConfig, tags: Tags, spark: SparkSession, code_paths: List[str]):
         """
@@ -82,8 +90,8 @@ class CustomModel:
         # Create DataBlock
         dblock = DataBlock(  # noqa: F405
             blocks=(ImageBlock, CategoryBlock),  # noqa: F405
-            get_x=lambda r: f"/Volumes/{self.catalog_name}/{self.schema_name}/fashion/images_compressed/" + r["image"],
-            get_y=lambda r: r["label"],
+            get_x=get_x,
+            get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),  # noqa: F405
         )  # ensure every item is of the same size
         self.dls = dblock.dataloaders(self.train_set)  # collates items from dataset into minibatches
@@ -95,7 +103,7 @@ class CustomModel:
         """
         logger.info("🚀 Starting training...")
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
-        self.learn.fine_tune(1, base_lr=3e-3)
+        # self.learn.fine_tune(1, base_lr=3e-3)
 
     def predict(self, context, model_input: str):
         if isinstance(model_input, pd.DataFrame):
