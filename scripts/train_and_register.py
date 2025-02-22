@@ -2,7 +2,7 @@ import mlflow
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
-from fashion.model import CustomModel
+from fashion.model import FashionClassifier
 
 # Default profile:
 mlflow.set_tracking_uri("databricks")
@@ -13,7 +13,9 @@ spark = SparkSession.builder.getOrCreate()
 tags = Tags(**{"git_sha": "abcd12345", "branch": "week2"})
 
 # Initialize model with the config path
-custom_model = CustomModel(config=config, tags=tags, spark=spark, code_paths=["../dist/fashion-0.0.1-py3-none-any.whl"])
+custom_model = FashionClassifier(
+    config=config, tags=tags, spark=spark, code_paths=["../dist/fashion-0.0.1-py3-none-any.whl"]
+)
 custom_model.load_data()
 custom_model.prepare_features()
 # Train + log the model (runs everything including MLflow logging)

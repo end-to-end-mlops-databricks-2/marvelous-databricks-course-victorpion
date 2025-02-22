@@ -4,7 +4,16 @@ import mlflow
 import mlflow.fastai
 import numpy as np
 import pandas as pd
-from fastai.vision.all import *  # noqa: F403
+from fastai.vision.all import (
+    CategoryBlock,
+    DataBlock,
+    ImageBlock,
+    PILImage,
+    RandomResizedCrop,
+    accuracy,
+    resnet18,
+    vision_learner,
+)
 from loguru import logger
 from mlflow import MlflowClient
 from mlflow.models import infer_signature
@@ -70,11 +79,11 @@ class CustomModel(mlflow.pyfunc.PythonModel):
         """
         logger.info("🔄 Defining preprocessing pipeline...")
         # Create DataBlock
-        dblock = DataBlock(  # noqa: F405
-            blocks=(ImageBlock, CategoryBlock),  # noqa: F405
+        dblock = DataBlock(
+            blocks=(ImageBlock, CategoryBlock),
             get_x=get_x,
             get_y=get_y,
-            item_tfms=RandomResizedCrop(128, min_scale=0.35),  # noqa: F405
+            item_tfms=RandomResizedCrop(128, min_scale=0.35),
         )  # ensure every item is of the same size
         self.dls = dblock.dataloaders(self.train_set)  # collates items from dataset into minibatches
         logger.info("✅ Preprocessing pipeline defined.")
@@ -84,27 +93,17 @@ class CustomModel(mlflow.pyfunc.PythonModel):
         Train the model.
         """
         logger.info("🚀 Starting training...")
-        self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)  # noqa: F405
+        self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)
         # self.learn.fine_tune(1, base_lr=3e-3)
         mlflow.fastai.autolog()
         with mlflow.start_run():
             self.model = self.learn
 
-        # def predict(self, context, model_input):
-        #     if isinstance(model_input, str):
-        #         image = PILImage.create(model_input)
-        #     elif isinstance(model_input, Image.Image):
-        #         image = model_input
-        #     else:
-        #         raise ValueError("Input must be either an image path (str) or a PIL image.")
-
-        #     image = image.resize((224, 224))
-        #     predictions = self.model.predict("/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/598090c2-f12f-4e60-9b23-d556a38117ad.jpg")
-        #     return predictions[0]
-
-        def predict(self, context, model_input):
-            predictions = self.model.predict(model_input)
-            return predictions[0]
+    def predict(self, context, model_input):
+        print(f"Type of input : {type(model_input)}")
+        print(f"Input : {model_input}")
+        predictions = self.model.predict(model_input)
+        return predictions[0]
 
     def log_model(self):
         mlflow.set_experiment(self.experiment_name)
