@@ -16,6 +16,7 @@ from fastai.vision.all import (
 from loguru import logger
 from mlflow import MlflowClient
 from mlflow.models import infer_signature
+from mlflow.utils.environment import _mlflow_conda_env
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
@@ -81,22 +82,24 @@ class FashionClassifier:
         """
         logger.info("🚀 Starting training...")
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)
-        # self.learn.fine_tune(1, base_lr=3e-3)
+        self.learn.fine_tune(5, base_lr=3e-3)
 
     def log_model(self):
         mlflow.set_experiment(self.experiment_name)
+        additional_pip_deps = ["pyspark==3.5.0"] + [f"code/{package.split('/')[-1]}" for package in self.code_paths]
         with mlflow.start_run(tags=self.tags) as run:
             self.run_id = run.info.run_id
             _, accuracy = self.learn.validate()
+            logger.info(f"📊 Accuracy: {accuracy}")
             mlflow.log_metric("accuracy", accuracy)
             image_path = (
                 "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/598090c2-f12f-4e60-9b23-d556a38117ad.jpg"
             )
             image = PILImage.create(image_path)  # noqa: F405
             image = image.resize((224, 224))
-            image_array = np.array(image).tolist()
+            image_array = np.array(image).reshape(1, 224, 224, 3)
             # Log the model
-            signature = infer_signature(model_input=image_array, model_output="Category")
+            signature = infer_signature(model_input=image_array, model_output="category")
             dataset = mlflow.data.from_spark(
                 self.train_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.train_images",
@@ -107,6 +110,7 @@ class FashionClassifier:
                 fastai_learner=self.learn,
                 artifact_path="pyfunc-fashion-image-model",
                 code_paths=self.code_paths,
+                conda_env=_mlflow_conda_env(additional_pip_deps=additional_pip_deps),
                 signature=signature,
             )
 

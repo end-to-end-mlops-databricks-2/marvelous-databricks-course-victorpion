@@ -20,7 +20,7 @@ class DataProcessor:
         """Preprocess the DataFrame stored in self.df"""
         dbutils = DBUtils(self.spark)
         self.df = self.df.copy()
-        self.df = self.df[self.df["label"] != "Not sure"]  # remove Not sure category
+        self.df = self.df[~self.df["label"].isin(["Not sure", "Skip", "Other"])]  # remove non-clothing categories
         self.df["image"] = self.df["image"] + ".jpg"  # add .jpg to all image ids
         self.df = self.df[["image", "label"]]  # keep only image id and label
         self.df["label"] = self.df["label"].astype("category")  # change data type to category

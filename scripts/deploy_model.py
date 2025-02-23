@@ -1,9 +1,10 @@
+import json
 import os
-import time
-from typing import Dict, List
 
 import mlflow
+import numpy as np
 import requests
+from fastai.vision.all import PILImage
 from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
 
@@ -36,33 +37,39 @@ model_serving = ModelServing(
 model_serving.deploy_or_update_serving_endpoint()
 
 # Sample 100 records from the training set
-test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set").toPandas()
-sampled_records = test_set["image"].sample(n=100, replace=True).to_dict(orient="records")
-dataframe_records = [[record] for record in sampled_records]
+test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_images").toPandas()
 
-# Call the endpoint with one sample record
+# Load model to retrieve vocabulary
+model = mlflow.fastai.load_model("models:/gso_dev_gsomlops.vpion.fashion_image_model_custom@latest-model")
 
 
-def call_endpoint(self, record: List(Dict)):
+def call_endpoint(record, vocab):
     """
     Calls the model serving endpoint with a given input record.
     """
-    serving_endpoint = f"https://{os.environ['DBR_HOST']}/serving-endpoints/{self.endpoint_name}/invocations"
+    serving_endpoint = f"https://{os.environ['DBR_HOST']}/serving-endpoints/fashion-image-model-serving/invocations"
 
     response = requests.post(
         serving_endpoint,
         headers={"Authorization": f"Bearer {os.environ['DBR_TOKEN']}"},
-        json={"dataframe_records": record},
+        json={"inputs": record},
     )
-    return response.status_code, response.text
+
+    data = json.loads(response.text)
+    predictions = data["predictions"][0]["predictions"]
+    predicted_index = np.argmax(predictions)
+    predicted_label = vocab[predicted_index]
+
+    return predicted_label
 
 
-status_code, response_text = call_endpoint(dataframe_records[0])
-print(f"Response Status: {status_code}")
-print(f"Response Text: {response_text}")
+def evaluate_model(i):
+    image_path = "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/" + test_set["image"][i]
+    image = PILImage.create(image_path)
+    image_array = np.array(image.resize((224, 224))).reshape(1, 224, 224, 3).tolist()
+    print(image.show())
+    print(f"True label : {test_set['label'][i]}")
+    print(f"Predicted label : {call_endpoint(image_array, model.dls.vocab)}")
 
-# "load test"
 
-for i in range(len(dataframe_records)):
-    call_endpoint(dataframe_records[i])
-    time.sleep(0.2)
+evaluate_model(0)
