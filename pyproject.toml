@@ -1,7 +1,7 @@
 [project]
-name = "fashion"
+name = "fashion-classifier"
 version = "0.0.1"
-description = "Fashion project"
+description = "Classifies fashion pictures"
 requires-python = ">=3.11, <3.12"
 dependencies = ["loguru",
                 "fastai"
