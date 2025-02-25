@@ -1,4 +1,3 @@
-from functools import partial
 from typing import List
 
 import mlflow
@@ -23,8 +22,9 @@ from pyspark.sql import SparkSession
 from fashion.config import ProjectConfig, Tags
 
 
-def get_x(r, catalog_name, schema_name, volume_name):
-    return f"/Volumes/{catalog_name}/{schema_name}/{volume_name}/images_compressed/{r['image']}"
+def get_x(r):
+    return "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/" + r["image"]
+    # doesn't work if i don't hardcode it for some reason..
 
 
 def get_y(r):
@@ -76,7 +76,7 @@ class FashionClassifier:
         # Create DataBlock
         dblock = DataBlock(
             blocks=(ImageBlock, CategoryBlock),
-            get_x=partial(get_x, self.catalog_name, self.schema_name, self.volume_name),
+            get_x=get_x,
             get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),
         )  # ensure every item is of the same size
