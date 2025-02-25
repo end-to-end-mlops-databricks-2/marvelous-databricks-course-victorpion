@@ -1,4 +1,5 @@
 catalog_name: gso_dev_gsomlops
 schema_name: vpion
+volume_name: fashion
 pipeline_id:
 experiment_name_custom: /Shared/fashion-image-custom

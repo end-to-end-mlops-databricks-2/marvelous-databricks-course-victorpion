@@ -3,8 +3,19 @@ name = "fashion"
 version = "0.0.1"
 description = "Fashion project"
 requires-python = ">=3.11, <3.12"
-dependencies = ["loguru",
-                "fastai"
+dependencies = ["mlflow==2.17.0",
+                "cffi==1.17.1",
+                "cloudpickle==3.1.0",
+                "matplotlib==3.9.2",
+                "numpy==1.26.4",
+                "pandas==2.2.3",
+                "psutil==6.0.0",
+                "pyarrow==14.0.1",
+                "scipy==1.14.1",
+                "databricks-sdk==0.32.0",
+                "pydantic==2.9.2",
+                "fastai==2.7.13",
+                "loguru==0.7.3"
                 ]
 
 [project.optional-dependencies]

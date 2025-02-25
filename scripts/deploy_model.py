@@ -25,12 +25,11 @@ os.environ["DBR_HOST"] = spark.conf.get("spark.databricks.workspaceUrl")
 
 # Load project config
 config = ProjectConfig.from_yaml(config_path="../project_config.yml")
-catalog_name = config.catalog_name
-schema_name = config.schema_name
 
 # Initialize feature store manager
 model_serving = ModelServing(
-    model_name=f"{catalog_name}.{schema_name}.fashion_image_model_custom", endpoint_name="fashion-image-model-serving"
+    model_name=f"{config.catalog_name}.{config.schema_name}.fashion_image_model_custom",
+    endpoint_name="fashion-image-model-serving",
 )
 
 # Deploy the model serving endpoint
@@ -64,7 +63,10 @@ def call_endpoint(record, vocab):
 
 
 def evaluate_model(i):
-    image_path = "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/" + test_set["image"][i]
+    image_path = (
+        f"/Volumes/{config.catalog_name}/{config.schema_name}/{config.volume_name}/images_compressed/"
+        + test_set["image"][i]
+    )
     image = PILImage.create(image_path)
     image_array = np.array(image.resize((224, 224))).reshape(1, 224, 224, 3).tolist()
     print(image.show())

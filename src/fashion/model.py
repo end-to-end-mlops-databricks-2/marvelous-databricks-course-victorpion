@@ -1,3 +1,4 @@
+from functools import partial
 from typing import List
 
 import mlflow
@@ -22,8 +23,8 @@ from pyspark.sql import SparkSession
 from fashion.config import ProjectConfig, Tags
 
 
-def get_x(r):
-    return f"/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/{r['image']}"
+def get_x(r, catalog_name, schema_name, volume_name):
+    return f"/Volumes/{catalog_name}/{schema_name}/{volume_name}/images_compressed/{r['image']}"
 
 
 def get_y(r):
@@ -39,6 +40,7 @@ class FashionClassifier:
         self.spark = spark
         self.catalog_name = self.config.catalog_name
         self.schema_name = self.config.schema_name
+        self.volume_name = self.volume_name
         self.experiment_name = self.config.experiment_name_custom
         self.tags = tags.dict()
         self.code_paths = code_paths
@@ -54,7 +56,12 @@ class FashionClassifier:
         self.train_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.train_images")
         self.train_set = self.train_set_spark.toPandas()
         self.test_set = self.spark.table(f"{self.catalog_name}.{self.schema_name}.test_images").toPandas()
-        self.data_version = "0"
+        self.data_version = (
+            self.spark.sql(f"DESCRIBE HISTORY {self.catalog_name}.{self.schema_name}.train_images")
+            .select("version")
+            .limit(1)
+            .collect()[0][0]
+        )
         logger.info("✅ Data successfully loaded.")
 
     def prepare_features(self):
@@ -69,7 +76,7 @@ class FashionClassifier:
         # Create DataBlock
         dblock = DataBlock(
             blocks=(ImageBlock, CategoryBlock),
-            get_x=get_x,
+            get_x=partial(get_x, self.catalog_name, self.schema_name, self.volume_name),
             get_y=get_y,
             item_tfms=RandomResizedCrop(128, min_scale=0.35),
         )  # ensure every item is of the same size
@@ -92,9 +99,8 @@ class FashionClassifier:
             _, accuracy = self.learn.validate()
             logger.info(f"📊 Accuracy: {accuracy}")
             mlflow.log_metric("accuracy", accuracy)
-            image_path = (
-                "/Volumes/gso_dev_gsomlops/vpion/fashion/images_compressed/598090c2-f12f-4e60-9b23-d556a38117ad.jpg"
-            )
+            mlflow.log_param("data_version", self.data_version)
+            image_path = f"/Volumes/{self.catalog_name}/{self.schema_name}/{self.volume_name}/images_compressed/598090c2-f12f-4e60-9b23-d556a38117ad.jpg"
             image = PILImage.create(image_path)  # noqa: F405
             image = image.resize((224, 224))
             image_array = np.array(image).reshape(1, 224, 224, 3)
