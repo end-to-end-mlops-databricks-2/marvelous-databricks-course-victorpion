@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class ProjectConfig(BaseModel):
     catalog_name: str
     schema_name: str
+    volume_name: str
     experiment_name_custom: str
 
     @classmethod

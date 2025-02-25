@@ -19,7 +19,9 @@ logger.info(yaml.dump(config, default_flow_style=False))
 spark = SparkSession.builder.getOrCreate()
 
 df = spark.read.csv(
-    f"/Volumes/{config.catalog_name}/{config.schema_name}/fashion/images_data.csv", header=True, inferSchema=True
+    f"/Volumes/{config.catalog_name}/{config.schema_name}/{config.volume_name}/images_data.csv",
+    header=True,
+    inferSchema=True,
 ).toPandas()
 
 
@@ -28,7 +30,7 @@ data_processor = DataProcessor(
     pandas_df=df,
     config=config,
     spark=spark,
-    images_path=f"/Volumes/{config.catalog_name}/{config.schema_name}/fashion/images_compressed/",
+    images_path=f"/Volumes/{config.catalog_name}/{config.schema_name}/{config.volume_name}/images_compressed/",
 )
 
 # Preprocess the data
