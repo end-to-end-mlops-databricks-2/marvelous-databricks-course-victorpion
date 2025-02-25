@@ -40,7 +40,7 @@ class FashionClassifier:
         self.spark = spark
         self.catalog_name = self.config.catalog_name
         self.schema_name = self.config.schema_name
-        self.volume_name = self.volume_name
+        self.volume_name = self.config.volume_name
         self.experiment_name = self.config.experiment_name_custom
         self.tags = tags.dict()
         self.code_paths = code_paths
