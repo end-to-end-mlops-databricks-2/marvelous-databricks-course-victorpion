@@ -20,9 +20,7 @@ custom_model = FashionClassifier(
     config=config,
     tags=tags,
     spark=spark,
-    code_paths=[
-        "/Workspace/Users/vpion@eu.delhaize.com/.bundle/dev/marvelous-databricks-course-victorpion/artifacts/.internal/fashion_classifier-0.0.1-py3-none-any.whl"
-    ],
+    code_paths=["../../artifacts/.internal/fashion_classifier-0.0.1-py3-none-any.whl"],
 )
 custom_model.load_data()
 custom_model.prepare_features()
