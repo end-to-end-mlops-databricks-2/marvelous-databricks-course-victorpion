@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append("../src")
+
 import json
 import os
 

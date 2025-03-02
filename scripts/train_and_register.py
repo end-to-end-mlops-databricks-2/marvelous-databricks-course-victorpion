@@ -1,3 +1,6 @@
+import sys
+
+sys.path.append("../src")
 import mlflow
 from pyspark.sql import SparkSession
 
@@ -14,7 +17,7 @@ tags = Tags(**{"git_sha": "abcd12345", "branch": "week2"})
 
 # Initialize model with the config path
 custom_model = FashionClassifier(
-    config=config, tags=tags, spark=spark, code_paths=["../dist/fashion-0.0.1-py3-none-any.whl"]
+    config=config, tags=tags, spark=spark, code_paths=["../dist/fashion_classifier-0.0.1-py3-none-any.whl"]
 )
 custom_model.load_data()
 custom_model.prepare_features()
@@ -36,9 +39,8 @@ custom_model.retrieve_current_run_metadata()
 custom_model.register_model()
 
 # Predict on the test set
+test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_images").toPandas()
 
-# test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set").limit(10)
+test_image = test_set["image"][0]
 
-# X_test = test_set.drop(config.target).toPandas()
-
-# predictions_df = custom_model.load_latest_model_and_predict(X_test)
+predictions_df = custom_model.load_latest_model_and_predict(test_image)

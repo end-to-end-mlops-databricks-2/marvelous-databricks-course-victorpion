@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append("../src")
+
 import logging
 
 import yaml

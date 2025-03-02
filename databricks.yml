@@ -25,7 +25,7 @@ variables:
 
 resources:
   jobs:
-    house-price:
+    fashion-classifier:
       name: fashion-classifier
       schedule:
         quartz_cron_expression: "0 0 6 ? * MON"
@@ -38,8 +38,8 @@ resources:
           new_cluster:
             spark_version: "15.4.x-scala2.12"
             data_security_mode: "SINGLE_USER"
-            node_type_id: "r3.xlarge"
-            driver_node_type_id: "r3.xlarge"
+            node_type_id: "Standard_DS3_v2"
+            driver_node_type_id: "Standard_DS3_v2"
             autoscale:
               min_workers: 1
               max_workers: 1
@@ -77,7 +77,7 @@ resources:
             - whl: ./dist/*.whl
         - task_key: "deploy_model"
           depends_on:
-            - task_key: "training_and_registering"
+            - task_key: "training_registering"
           job_cluster_key: "fashion-classifier-cluster"
           spark_python_task:
             python_file: "scripts/deploy_model.py"

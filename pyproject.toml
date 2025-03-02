@@ -3,7 +3,7 @@ name = "fashion-classifier"
 version = "0.0.1"
 description = "Classifies fashion pictures"
 requires-python = ">=3.11, <3.12"
-dependencies = ["mlflow==2.17.0",
+dependencies = ["mlflow==2.20.0",
                 "cffi==1.17.1",
                 "cloudpickle==3.1.0",
                 "matplotlib==3.9.2",
@@ -14,7 +14,7 @@ dependencies = ["mlflow==2.17.0",
                 "scipy==1.14.1",
                 "databricks-sdk==0.32.0",
                 "pydantic==2.9.2",
-                "fastai==2.7.13",
+                "fastai==2.7.18",
                 "loguru==0.7.3"
                 ]
 
