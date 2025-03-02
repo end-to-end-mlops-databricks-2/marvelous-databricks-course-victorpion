@@ -52,7 +52,6 @@ class FashionClassifier:
         Target (y_train, y_test)
         """
         logger.info("🔄 Loading data from Databricks tables...")
-        print("okkk")
         self.train_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.train_images")
         self.train_set = self.train_set_spark.toPandas()
         self.data_version = (
