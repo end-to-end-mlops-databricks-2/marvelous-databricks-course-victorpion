@@ -2,7 +2,6 @@ from typing import List
 
 import mlflow
 import numpy as np
-import pandas as pd
 from fastai.vision.all import (
     CategoryBlock,
     DataBlock,
@@ -55,7 +54,6 @@ class FashionClassifier:
         logger.info("🔄 Loading data from Databricks tables...")
         self.train_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.train_images")
         self.train_set = self.train_set_spark.toPandas()
-        self.test_set = self.spark.table(f"{self.catalog_name}.{self.schema_name}.test_images").toPandas()
         self.data_version = (
             self.spark.sql(f"DESCRIBE HISTORY {self.catalog_name}.{self.schema_name}.train_images")
             .select("version")
@@ -141,8 +139,11 @@ class FashionClassifier:
         run_data = mlflow.get_run(self.run_id).data.to_dictionary()
         return run_data["metrics"], run_data["params"]
 
-    def load_latest_model_and_predict(self, input_data: pd.DataFrame):
-        model = mlflow.pyfunc.load_model(
+    def load_latest_model_and_predict(self, input_data):
+        model = mlflow.fastai.load_model(
             f"models:/{self.catalog_name}.{self.schema_name}.fashion_image_model_custom@latest-model"
         )
-        return model.predict(input_data)
+        input_data_path = (
+            f"/Volumes/{self.catalog_name}/{self.schema_name}/{self.volume_name}/images_compressed/" + input_data
+        )
+        return model.predict(input_data_path)
