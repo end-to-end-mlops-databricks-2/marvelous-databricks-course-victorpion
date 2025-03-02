@@ -17,7 +17,12 @@ tags = Tags(**{"git_sha": "abcd12345", "branch": "week2"})
 
 # Initialize model with the config path
 custom_model = FashionClassifier(
-    config=config, tags=tags, spark=spark, code_paths=["../dist/fashion_classifier-0.0.1-py3-none-any.whl"]
+    config=config,
+    tags=tags,
+    spark=spark,
+    code_paths=[
+        "/Workspace/Users/vpion@eu.delhaize.com/.bundle/dev/marvelous-databricks-course-victorpion/artifacts/.internal/fashion_classifier-0.0.1-py3-none-any.whl"
+    ],
 )
 custom_model.load_data()
 custom_model.prepare_features()

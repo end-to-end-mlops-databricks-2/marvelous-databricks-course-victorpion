@@ -3,7 +3,7 @@ name = "fashion-classifier"
 version = "0.0.1"
 description = "Classifies fashion pictures"
 requires-python = ">=3.11, <3.12"
-dependencies = ["mlflow==2.20.0",
+dependencies = ["mlflow==2.17.0",
                 "cffi==1.17.1",
                 "cloudpickle==3.1.0",
                 "matplotlib==3.9.2",
