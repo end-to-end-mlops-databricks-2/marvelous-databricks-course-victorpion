@@ -87,7 +87,8 @@ class FashionClassifier:
         """
         logger.info("🚀 Starting training...")
         self.learn = vision_learner(self.dls, resnet18, metrics=accuracy)
-        self.learn.fine_tune(5, base_lr=3e-3)
+        with self.learn.no_bar():
+            self.learn.fine_tune(5, base_lr=3e-3)
 
     def log_model(self):
         mlflow.set_experiment(self.experiment_name)

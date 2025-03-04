@@ -52,8 +52,6 @@ resources:
             parameters:
               - "--root_path"
               - ${workspace.root_path}
-              - "--env"
-              - ${bundle.target}
           libraries:
            - whl: ./dist/*.whl
         - task_key: "training_registering"
@@ -84,8 +82,6 @@ resources:
             parameters:
               - "--root_path"
               - ${workspace.root_path}
-              - "--env"
-              - ${bundle.target}
           libraries:
             - whl: ./dist/*.whl
 
