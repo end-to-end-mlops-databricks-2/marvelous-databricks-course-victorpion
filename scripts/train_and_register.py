@@ -1,10 +1,17 @@
 import argparse
+import os
 
+import fastprogress
 import mlflow
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
 from fashion.model import FashionClassifier
+
+fastprogress.fastprogress.NO_BAR = True  # Disables FastAI progress bars
+fastprogress.fastprogress.WRITER_FN = lambda x: None
+
+os.environ["MLFLOW_PROGRESS_BARS"] = "false"
 
 # Default profile:
 mlflow.set_tracking_uri("databricks")
@@ -58,12 +65,15 @@ spark = SparkSession.builder.getOrCreate()
 tags_dict = {"git_sha": args.git_sha, "branch": args.branch, "job_run_id": args.job_run_id}
 tags = Tags(**tags_dict)
 
+with open(f"{args.root_path}/files/version.txt", "r") as f:
+    version = f.read().strip()
+
 # Initialize model with the config path
 custom_model = FashionClassifier(
     config=config,
     tags=tags,
     spark=spark,
-    code_paths=[f"{args.root_path}/artifacts/.internal/fashion_classifier-0.0.1-py3-none-any.whl"],
+    code_paths=[f"{args.root_path}/artifacts/.internal/fashion_classifier-{version}-py3-none-any.whl"],
 )
 custom_model.load_data()
 custom_model.prepare_features()
