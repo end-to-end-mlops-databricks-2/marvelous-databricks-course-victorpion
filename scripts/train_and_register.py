@@ -1,20 +1,79 @@
+import argparse
+import os
+
+import fastprogress
 import mlflow
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig, Tags
 from fashion.model import FashionClassifier
 
+fastprogress.fastprogress.NO_BAR = True  # Disables FastAI progress bars
+fastprogress.fastprogress.WRITER_FN = lambda x: None
+
+os.environ["MLFLOW_PROGRESS_BARS"] = "false"
+
 # Default profile:
 mlflow.set_tracking_uri("databricks")
 mlflow.set_registry_uri("databricks-uc")
 
-config = ProjectConfig.from_yaml(config_path="../project_config.yml")
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--root_path",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+parser.add_argument(
+    "--env",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+parser.add_argument(
+    "--git_sha",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+parser.add_argument(
+    "--job_run_id",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+parser.add_argument(
+    "--branch",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+args = parser.parse_args()
+
+config = ProjectConfig.from_yaml(config_path=f"{args.root_path}/files/project_config.yml")
 spark = SparkSession.builder.getOrCreate()
-tags = Tags(**{"git_sha": "abcd12345", "branch": "week2"})
+tags_dict = {"git_sha": args.git_sha, "branch": args.branch, "job_run_id": args.job_run_id}
+tags = Tags(**tags_dict)
+
+with open(f"{args.root_path}/files/version.txt", "r") as f:
+    version = f.read().strip()
 
 # Initialize model with the config path
 custom_model = FashionClassifier(
-    config=config, tags=tags, spark=spark, code_paths=["../dist/fashion-0.0.1-py3-none-any.whl"]
+    config=config,
+    tags=tags,
+    spark=spark,
+    code_paths=[f"{args.root_path}/artifacts/.internal/fashion_classifier-{version}-py3-none-any.whl"],
 )
 custom_model.load_data()
 custom_model.prepare_features()
@@ -36,9 +95,8 @@ custom_model.retrieve_current_run_metadata()
 custom_model.register_model()
 
 # Predict on the test set
+test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_images").toPandas()
 
-# test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set").limit(10)
+test_image = test_set["image"][0]
 
-# X_test = test_set.drop(config.target).toPandas()
-
-# predictions_df = custom_model.load_latest_model_and_predict(X_test)
+predictions_df = custom_model.load_latest_model_and_predict(test_image)

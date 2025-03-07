@@ -1,7 +1,7 @@
 [project]
-name = "fashion"
-version = "0.0.1"
-description = "Fashion project"
+name = "fashion-classifier"
+dynamic = ["version"]
+description = "Classifies fashion pictures"
 requires-python = ">=3.11, <3.12"
 dependencies = ["mlflow==2.17.0",
                 "cffi==1.17.1",
@@ -14,7 +14,7 @@ dependencies = ["mlflow==2.17.0",
                 "scipy==1.14.1",
                 "databricks-sdk==0.32.0",
                 "pydantic==2.9.2",
-                "fastai==2.7.13",
+                "fastai==2.7.18",
                 "loguru==0.7.3"
                 ]
 
@@ -28,6 +28,9 @@ dev = ["databricks-connect>=15.4.1, <16",
 requires = [
   "setuptools>=72.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {file = "version.txt"}
 
 [tool.setuptools.packages.find]
 where =["src"]
