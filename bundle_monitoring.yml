@@ -1,0 +1,33 @@
+
+resources:
+  jobs:
+    fashion-classifier-monitor-update:
+      name: fashion-classifier-monitor-update-workflow
+      schedule:
+        quartz_cron_expression: "0 0 6 ? * MON"
+        timezone_id: "Europe/Amsterdam"
+        pause_status: ${var.schedule_pause_status}
+      tags:
+        project_name: "fashion-classifier"
+      job_clusters:
+        - job_cluster_key: "fashion-classifier-cluster"
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            data_security_mode: "SINGLE_USER"
+            node_type_id: "Standard_DS3_v2"
+            driver_node_type_id: "Standard_DS3_v2"
+            autoscale:
+              min_workers: 1
+              max_workers: 1
+
+      tasks:
+        - task_key: "refresh_monitor_table"
+          # job_cluster_key: "fashion-classifier-cluster"
+          existing_cluster_id: 0203-205008-40byrk1u
+          spark_python_task:
+            python_file: "scripts/refresh_monitor.py"
+            parameters:
+              - "--root_path"
+              - ${workspace.root_path}
+          libraries:
+           - whl: ./dist/*.whl

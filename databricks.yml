@@ -5,6 +5,9 @@
 bundle:
   name: marvelous-databricks-course-victorpion
 
+include:
+  - bundle_monitoring.yml
+
 artifacts:
   default:
     type: whl
