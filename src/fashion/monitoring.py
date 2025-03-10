@@ -1,6 +1,5 @@
 import os
 
-import mlflow
 import numpy as np
 from databricks.sdk.errors import NotFound
 from databricks.sdk.service.catalog import (
@@ -12,13 +11,8 @@ from loguru import logger
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, DoubleType, IntegerType, StringType, StructField, StructType
 
-mlflow.set_tracking_uri("databricks")
-mlflow.set_registry_uri("databricks-uc")
 
-
-def create_or_refresh_monitoring(config, spark, workspace):
-    model = mlflow.fastai.load_model("models:/gso_dev_gsomlops.vpion.fashion_image_model_custom@latest-model")
-
+def create_or_refresh_monitoring(config, spark, workspace, model):
     inf_table = spark.sql(
         f"SELECT * FROM {config.catalog_name}.{config.schema_name}.`fashion-image-model-serving_payload`"
     )
@@ -44,10 +38,6 @@ def create_or_refresh_monitoring(config, spark, workspace):
 
     test_images_df = spark.table(f"{config.catalog_name}.{config.schema_name}.test_images")
     test_image_names = test_images_df.select("image").rdd.flatMap(lambda x: x).collect()
-
-    def preprocess_image(image_path):
-        img = PILImage.create(image_path)
-        return np.array(img.resize((224, 224))).reshape(1, 224, 224, 3).tolist()
 
     image_data = []
     for image_file in os.listdir(base_path):
@@ -88,6 +78,11 @@ def create_or_refresh_monitoring(config, spark, workspace):
         logger.info("Lakehouse monitoring table is created.")
 
 
+def preprocess_image(image_path):
+    img = PILImage.create(image_path)
+    return np.array(img.resize((224, 224))).reshape(1, 224, 224, 3).tolist()
+
+
 def create_monitoring_table(config, spark, workspace):
     logger.info("Creating new monitoring table..")
 
@@ -109,3 +104,36 @@ def create_monitoring_table(config, spark, workspace):
 
     # Important to update monitoring
     spark.sql(f"ALTER TABLE {monitoring_table} " "SET TBLPROPERTIES (delta.enableChangeDataFeed = true);")
+
+
+# def create_alert():
+
+#     w = WorkspaceClient()
+#     srcs = w.data_sources.list()
+#     alert_query = """
+#     SELECT
+#     (COUNT(CASE WHEN mean_absolute_error > 70000 THEN 1 END) * 100.0 / COUNT(CASE WHEN mean_absolute_error IS NOT NULL AND NOT isnan(mean_absolute_error) THEN 1 END)) AS percentage_higher_than_70000
+#     FROM mlops_prod.house_prices.model_monitoring_profile_metrics"""
+
+
+#     query = w.queries.create(query=sql.CreateQueryRequestQuery(display_name=f'fashion-classifier-alert-query-{time.time_ns()}',
+#                                                             warehouse_id=srcs[0].warehouse_id,
+#                                                             description="Alert on house price model accuracy",
+#                                                             query_text=alert_query))
+
+#     alert = w.alerts.create(
+#         alert=sql.CreateAlertRequestAlert(condition=sql.AlertCondition(operand=sql.AlertConditionOperand(
+#             column=sql.AlertOperandColumn(name="percentage_higher_than_70000")),
+#                 op=sql.AlertOperator.GREATER_THAN,
+#                 threshold=sql.AlertConditionThreshold(
+#                     value=sql.AlertOperandValue(
+#                         double_value=45))),
+#                 display_name=f'house-price-mae-alert-{time.time_ns()}',
+#                 query_id=query.id
+#             )
+#         )
+
+
+#     # cleanup
+#     w.queries.delete(id=query.id)
+#     w.alerts.delete(id=alert.id)

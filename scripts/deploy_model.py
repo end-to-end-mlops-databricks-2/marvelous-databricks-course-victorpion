@@ -81,7 +81,6 @@ def evaluate_model(i):
     )
     image = PILImage.create(image_path)
     image_array = np.array(image.resize((224, 224))).reshape(1, 224, 224, 3).tolist()
-    print(image.show())
     print(f"True label : {test_set['label'][i]}")
     print(f"Predicted label : {call_endpoint(image_array, model.dls.vocab)}")
 
