@@ -47,7 +47,7 @@ model_serving = ModelServing(
 # Deploy the model serving endpoint
 model_serving.deploy_or_update_serving_endpoint()
 
-# Sample 100 records from the training set
+# Sample 100 records from the testing set
 test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_images").toPandas()
 
 # Load model to retrieve vocabulary
