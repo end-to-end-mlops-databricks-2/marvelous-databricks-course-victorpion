@@ -1,7 +1,6 @@
 import argparse
 import logging
 
-import yaml
 from pyspark.sql import SparkSession
 
 from fashion.config import ProjectConfig
@@ -23,9 +22,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 config = ProjectConfig.from_yaml(config_path=f"{args.root_path}/files/project_config.yml")
-
-logger.info("Configuration loaded:")
-logger.info(yaml.dump(config, default_flow_style=False))
 
 # Load the fashion prices dataset
 spark = SparkSession.builder.getOrCreate()

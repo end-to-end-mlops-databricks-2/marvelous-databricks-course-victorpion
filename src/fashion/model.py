@@ -63,21 +63,16 @@ class FashionClassifier:
         logger.info("✅ Data successfully loaded.")
 
     def prepare_features(self):
-        """
-        Encodes categorical features with OneHotEncoder (ignores unseen categories).
-        Passes numerical features as-is (remainder='passthrough').
-        Defines a pipeline combining:
-            Features processing
-            LightGBM regression model
-        """
         logger.info("🔄 Defining preprocessing pipeline...")
         # Create DataBlock
         dblock = DataBlock(
-            blocks=(ImageBlock, CategoryBlock),
+            blocks=(ImageBlock, CategoryBlock),  # imageblock is images, categoryblock is label
             get_x=get_x,
             get_y=get_y,
-            item_tfms=RandomResizedCrop(128, min_scale=0.35),
-        )  # ensure every item is of the same size
+            item_tfms=RandomResizedCrop(
+                128, min_scale=0.35
+            ),  # resize randomly to 128x128 pixels while maintaining 35% of the original image
+        )  # ensure every item is of the same size and easier generalization
         self.dls = dblock.dataloaders(self.train_set)  # collates items from dataset into minibatches
         logger.info("✅ Preprocessing pipeline defined.")
 
@@ -100,9 +95,11 @@ class FashionClassifier:
             mlflow.log_metric("accuracy", accuracy)
             mlflow.log_param("data_version", self.data_version)
             image_path = f"/Volumes/{self.catalog_name}/{self.schema_name}/{self.volume_name}/images_compressed/598090c2-f12f-4e60-9b23-d556a38117ad.jpg"
-            image = PILImage.create(image_path)  # noqa: F405
-            image = image.resize((224, 224))
-            image_array = np.array(image).reshape(1, 224, 224, 3)
+            image = PILImage.create(image_path)
+            image = image.resize((224, 224))  # resnet input size
+            image_array = np.array(image).reshape(
+                1, 224, 224, 3
+            )  # batch format, 1 image, 224x224 images, 3 color channel RGB
             # Log the model
             signature = infer_signature(model_input=image_array, model_output="category")
             dataset = mlflow.data.from_spark(
@@ -113,7 +110,7 @@ class FashionClassifier:
             mlflow.log_input(dataset, context="training")
             mlflow.fastai.log_model(
                 fastai_learner=self.learn,
-                artifact_path="pyfunc-fashion-image-model",
+                artifact_path="fashion-classifier-model",
                 code_paths=self.code_paths,
                 conda_env=_mlflow_conda_env(additional_pip_deps=additional_pip_deps),
                 signature=signature,
@@ -122,7 +119,7 @@ class FashionClassifier:
     def register_model(self):
         logger.info("🔄 Registering the model in UC...")
         registered_model = mlflow.register_model(
-            model_uri=f"runs:/{self.run_id}/pyfunc-fashion-image-model",
+            model_uri=f"runs:/{self.run_id}/fashion-classifier-model",
             name=f"{self.catalog_name}.{self.schema_name}.fashion_image_model_custom",
             tags=self.tags,
         )
