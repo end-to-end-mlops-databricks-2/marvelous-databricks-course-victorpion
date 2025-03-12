@@ -27,16 +27,13 @@ class DataProcessor:
         images = dbutils.fs.ls(self.images_path)
         images_ids = set([img.name for img in images])  # list the images ids present in the images folder
         self.df = self.df[self.df["image"].isin(images_ids)]  # remove rows with missing images from the csv
-        self.df = self.remove_corrupt_images(self.df)
-        # value_counts = self.df["label"].value_counts()
-        # categories_to_keep = value_counts[value_counts >= 10].index
-        # self.df = self.df[self.df["label"].isin(categories_to_keep)]
+        self.df = self.remove_corrupt_images(self.df)  # remove corrupt images from the dataset
         logger.info(f"{len(self.df)} valid images in the dataset.")
 
     def is_corrupt(self, image_path):
         try:
             with Image.open(image_path) as img:
-                img.verify()
+                img.verify()  # checks if the image can ben opened (-> is not corrupted)
             return False
         except Exception:
             return True

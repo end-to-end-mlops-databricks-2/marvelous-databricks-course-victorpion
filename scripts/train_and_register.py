@@ -83,7 +83,7 @@ custom_model.log_model()
 
 run_id = mlflow.search_runs(experiment_names=["/Shared/fashion-image-custom"]).run_id[0]
 
-model = mlflow.pyfunc.load_model(f"runs:/{run_id}/pyfunc-fashion-image-model")
+model = mlflow.fastai.load_model(f"runs:/{run_id}/fashion-classifier-model")
 
 # Retrieve dataset for the current run
 custom_model.retrieve_current_run_dataset()
